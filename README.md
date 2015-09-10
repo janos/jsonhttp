@@ -1,5 +1,5 @@
 # HTTP JSON Response for Go
 
-## Instalation
+## Installation
 
 Run `go get resenje.org/jsonresponse` from command line.
