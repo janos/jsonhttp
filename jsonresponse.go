@@ -6,6 +6,13 @@ import (
 	"net/http"
 )
 
+var (
+	DefaultMessageKey           = "message"
+	DefaultCodeKey              = "code"
+	DefaultProgrammingExcuseKey = "programming-excuse"
+	DefaultContentTypeHeader    = "application/json; charset=utf-8"
+)
+
 type Response map[string]interface{}
 
 func (r Response) String() (s string) {
@@ -17,19 +24,21 @@ func (r Response) String() (s string) {
 }
 
 func (r Response) Response(w http.ResponseWriter, statusCode int) {
-	if _, ok := r["message"]; !ok {
-		r["message"] = http.StatusText(statusCode)
+	if _, ok := r[DefaultMessageKey]; !ok {
+		r[DefaultMessageKey] = http.StatusText(statusCode)
 	}
-	if _, ok := r["code"]; !ok {
-		r["code"] = statusCode
+	if _, ok := r[DefaultCodeKey]; !ok {
+		r[DefaultCodeKey] = statusCode
 	}
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	if DefaultContentTypeHeader != "" {
+		w.Header().Set("Content-Type", DefaultContentTypeHeader)
+	}
 	w.WriteHeader(statusCode)
 	fmt.Fprint(w, r.String()+"\n")
 }
 
 func (r Response) WithProgrammingExcuse() Response {
-	r["programming-excuse"] = randomExcuse()
+	r[DefaultProgrammingExcuseKey] = randomExcuse()
 	return r
 }
 
