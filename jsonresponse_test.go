@@ -261,3 +261,14 @@ func TestStandardHTTPResponds(t *testing.T) {
 		}
 	}
 }
+
+func TestNewMessage(t *testing.T) {
+	message := "testing message"
+	m := NewMessage(message)
+	if m.Message != message {
+		t.Error("expected message %q, got %q", message, m.Message)
+	}
+	if m.Code != 0 {
+		t.Error("expected message %d, got %d", 0, m.Code)
+	}
+}
