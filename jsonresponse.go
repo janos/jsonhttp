@@ -24,6 +24,7 @@ type MessageResponse struct {
 	Message string `json:"message,omitempty"`
 }
 
+// NewMessage returns MessageResponse with a provided textual message.
 func NewMessage(message string) *MessageResponse {
 	return &MessageResponse{
 		Message: message,
