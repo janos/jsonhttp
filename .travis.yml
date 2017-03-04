@@ -1,13 +1,13 @@
 language: go
 
 go:
-  - 1.7
+  - 1.8
 
 install:
-  - go get -v resenje.org/antixsrf
+  - go get -v resenje.org/jsonresponse
 
 before_script:
-  - go vet -v resenje.org/antixsrf/...
+  - go vet -v resenje.org/jsonresponse/...
 
 script:
-  - go test -v resenje.org/antixsrf/...
+  - go test -v resenje.org/jsonresponse/...
