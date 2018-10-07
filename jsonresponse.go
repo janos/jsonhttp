@@ -6,6 +6,7 @@
 package jsonresponse // import "resenje.org/jsonresponse"
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -15,6 +16,9 @@ var (
 	// DefaultContentTypeHeader is the value of if "Content-Type" header
 	// in HTTP response.
 	DefaultContentTypeHeader = "application/json; charset=utf-8"
+	// EscapeHTML specifies whether problematic HTML characters
+	// should be escaped inside JSON quoted strings.
+	EscapeHTML = false
 )
 
 // MessageResponse is the response structure that will be written by
@@ -46,15 +50,17 @@ func Respond(w http.ResponseWriter, statusCode int, response interface{}) {
 			r.Message = http.StatusText(statusCode)
 		}
 	}
-	b, err := json.Marshal(response)
-	if err != nil {
+	var b bytes.Buffer
+	enc := json.NewEncoder(&b)
+	enc.SetEscapeHTML(EscapeHTML)
+	if err := enc.Encode(response); err != nil {
 		panic(err)
 	}
 	if DefaultContentTypeHeader != "" {
 		w.Header().Set("Content-Type", DefaultContentTypeHeader)
 	}
 	w.WriteHeader(statusCode)
-	fmt.Fprint(w, string(b)+"\n")
+	fmt.Fprintln(w, b.String())
 }
 
 // Continue writes a response with status code 100.
