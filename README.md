@@ -1,7 +1,7 @@
 # HTTP JSON Response for Go
 
 [![GoDoc](https://godoc.org/resenje.org/jsonresponse?status.svg)](https://godoc.org/resenje.org/jsonresponse)
-[![Build Status](https://travis-ci.org/janos/jsonresponse.svg?branch=master)](https://travis-ci.org/janos/jsonresponse)
+[![Go](https://github.com/janos/jsonresponse/workflows/Go/badge.svg)](https://github.com/janos/jsonresponse/actions?query=workflow%3AGo)
 
 ## Installation
 
