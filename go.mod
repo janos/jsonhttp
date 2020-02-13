@@ -1,3 +1,3 @@
-module resenje.org/jsonresponse
+module resenje.org/jsonhttp
 
 go 1.13
