@@ -3,71 +3,80 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package jsonhttp
+package jsonhttp_test
 
 import (
 	"encoding/json"
+	"errors"
+	"net"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"testing"
+
+	"resenje.org/jsonhttp"
 )
 
-func TestDefaultRespond(t *testing.T) {
+func TestRespond_defaults(t *testing.T) {
 	w := httptest.NewRecorder()
 
-	Respond(w, 0, nil)
+	jsonhttp.Respond(w, 0, nil)
 
 	statusCode := w.Result().StatusCode
-	if statusCode != http.StatusOK {
-		t.Errorf("expected status code %d, got %d", http.StatusOK, statusCode)
+	wantCode := http.StatusOK
+	if statusCode != wantCode {
+		t.Errorf("got status code %d, want %d", statusCode, wantCode)
 	}
 
-	m := &MessageResponse{}
+	var m *jsonhttp.StatusResponse
 
-	if err := json.Unmarshal(w.Body.Bytes(), m); err != nil {
+	if err := json.Unmarshal(w.Body.Bytes(), &m); err != nil {
 		t.Errorf("json unmarshal response body: %s", err)
 	}
 
-	if m.Code != 0 {
-		t.Errorf("expected message code %d, got %d", 0, m.Code)
+	if m.Code != wantCode {
+		t.Errorf("got message code %d, want %d", m.Code, wantCode)
 	}
 
-	if m.Message != "" {
-		t.Errorf("expected message message \"\", got \"%s\"", m.Message)
+	wantMessage := http.StatusText(wantCode)
+	if m.Message != wantMessage {
+		t.Errorf("got message message %q, want %q", m.Message, wantMessage)
 	}
+
+	testContentType(t, w)
 }
 
-func TestStatusCodeRespond(t *testing.T) {
+func TestRespond_statusCode(t *testing.T) {
 	w := httptest.NewRecorder()
 
-	Respond(w, http.StatusForbidden, nil)
+	jsonhttp.Respond(w, http.StatusForbidden, nil)
 
 	statusCode := w.Result().StatusCode
 	if statusCode != http.StatusForbidden {
 		t.Errorf("expected status code %d, got %d", http.StatusForbidden, statusCode)
 	}
 
-	m := &MessageResponse{}
+	var r jsonhttp.StatusResponse
 
-	if err := json.Unmarshal(w.Body.Bytes(), m); err != nil {
+	if err := json.Unmarshal(w.Body.Bytes(), &r); err != nil {
 		t.Errorf("json unmarshal response body: %s", err)
 	}
 
-	if m.Code != http.StatusForbidden {
-		t.Errorf("expected message code %d, got %d", http.StatusForbidden, m.Code)
+	if r.Code != http.StatusForbidden {
+		t.Errorf("expected message code %d, got %d", http.StatusForbidden, r.Code)
 	}
 
 	message := http.StatusText(http.StatusForbidden)
-	if m.Message != message {
-		t.Errorf("expected message message \"%s\", got \"%s\"", message, m.Message)
+	if r.Message != message {
+		t.Errorf("expected message message %q, got %q", message, r.Message)
 	}
 }
 
-func TestMessageRespond(t *testing.T) {
+func TestRespond_message(t *testing.T) {
 	w := httptest.NewRecorder()
 
 	message := "test message"
-	Respond(w, 0, MessageResponse{
+	jsonhttp.Respond(w, 0, jsonhttp.StatusResponse{
 		Message: message,
 	})
 
@@ -76,54 +85,26 @@ func TestMessageRespond(t *testing.T) {
 		t.Errorf("expected status code %d, got %d", http.StatusOK, statusCode)
 	}
 
-	m := &MessageResponse{}
+	var r jsonhttp.StatusResponse
 
-	if err := json.Unmarshal(w.Body.Bytes(), m); err != nil {
+	if err := json.Unmarshal(w.Body.Bytes(), &r); err != nil {
 		t.Errorf("json unmarshal response body: %s", err)
 	}
 
-	if m.Code != 0 {
-		t.Errorf("expected message code %d, got %d", 0, m.Code)
+	if r.Code != 0 {
+		t.Errorf("expected message code %d, got %d", 0, r.Code)
 	}
 
-	if m.Message != message {
-		t.Errorf("expected message message \"%s\", got \"%s\"", message, m.Message)
-	}
-}
-
-func TestMessageAndStatusCodeRespond(t *testing.T) {
-	w := httptest.NewRecorder()
-
-	message := "test custom forbidden message"
-	Respond(w, http.StatusForbidden, MessageResponse{
-		Message: message,
-	})
-
-	statusCode := w.Result().StatusCode
-	if statusCode != http.StatusForbidden {
-		t.Errorf("expected status code %d, got %d", http.StatusForbidden, statusCode)
-	}
-
-	m := &MessageResponse{}
-
-	if err := json.Unmarshal(w.Body.Bytes(), m); err != nil {
-		t.Errorf("json unmarshal response body: %s", err)
-	}
-
-	if m.Code != http.StatusForbidden {
-		t.Errorf("expected message code %d, got %d", http.StatusForbidden, m.Code)
-	}
-
-	if m.Message != message {
-		t.Errorf("expected message message \"%s\", got \"%s\"", message, m.Message)
+	if r.Message != message {
+		t.Errorf("expected message message %q, got %q", message, r.Message)
 	}
 }
 
-func TestCustomCodeRespond(t *testing.T) {
+func TestRespond_customCode(t *testing.T) {
 	w := httptest.NewRecorder()
 
 	code := 1001
-	Respond(w, 0, MessageResponse{
+	jsonhttp.Respond(w, 0, jsonhttp.StatusResponse{
 		Code: code,
 	})
 
@@ -132,27 +113,27 @@ func TestCustomCodeRespond(t *testing.T) {
 		t.Errorf("expected status code %d, got %d", http.StatusOK, statusCode)
 	}
 
-	m := &MessageResponse{}
+	var r jsonhttp.StatusResponse
 
-	if err := json.Unmarshal(w.Body.Bytes(), m); err != nil {
+	if err := json.Unmarshal(w.Body.Bytes(), &r); err != nil {
 		t.Errorf("json unmarshal response body: %s", err)
 	}
 
-	if m.Code != code {
-		t.Errorf("expected message code %d, got %d", code, m.Code)
+	if r.Code != code {
+		t.Errorf("expected message code %d, got %d", code, r.Code)
 	}
 
-	if m.Message != "" {
-		t.Errorf("expected message message \"\", got \"%s\"", m.Message)
+	if r.Message != "" {
+		t.Errorf("expected message message \"\", got %q", r.Message)
 	}
 }
 
-func TestMessageAndCustomCodeRespond(t *testing.T) {
+func TestRespond_messageAndCustomCode(t *testing.T) {
 	w := httptest.NewRecorder()
 
 	message := "test custom message"
 	code := 1001
-	Respond(w, http.StatusNotFound, MessageResponse{
+	jsonhttp.Respond(w, http.StatusNotFound, jsonhttp.StatusResponse{
 		Message: message,
 		Code:    code,
 	})
@@ -162,113 +143,219 @@ func TestMessageAndCustomCodeRespond(t *testing.T) {
 		t.Errorf("expected status code %d, got %d", http.StatusNotFound, statusCode)
 	}
 
-	m := &MessageResponse{}
+	var r jsonhttp.StatusResponse
 
-	if err := json.Unmarshal(w.Body.Bytes(), m); err != nil {
+	if err := json.Unmarshal(w.Body.Bytes(), &r); err != nil {
 		t.Errorf("json unmarshal response body: %s", err)
 	}
 
-	if m.Code != code {
-		t.Errorf("expected message code %d, got %d", code, m.Code)
+	if r.Code != code {
+		t.Errorf("expected message code %d, got %d", code, r.Code)
 	}
 
-	if m.Message != message {
-		t.Errorf("expected message message \"%s\", got \"%s\"", message, m.Message)
+	if r.Message != message {
+		t.Errorf("expected message message %q, got %q", message, r.Message)
 	}
 }
 
-func TestPanicRespond(t *testing.T) {
+func TestRespond_panic(t *testing.T) {
 	w := httptest.NewRecorder()
 
 	defer func() {
 		err := recover()
 		if _, ok := err.(*json.UnsupportedTypeError); !ok {
-			t.Errorf("exppected error from recover json.UnsupportedTypeError, got %#v", err)
+			t.Errorf("expected error from recover json.UnsupportedTypeError, got %#v", err)
 		}
 	}()
 
-	Respond(w, http.StatusNotFound, map[bool]string{
+	jsonhttp.Respond(w, http.StatusNotFound, map[bool]string{
 		true: "",
 	})
 }
 
-func TestStandardHTTPResponds(t *testing.T) {
-	for _, test := range []struct {
-		f    func(w http.ResponseWriter, response interface{})
-		code int
+func TestRespond_special(t *testing.T) {
+	for _, tc := range []struct {
+		name        string
+		code        int
+		response    interface{}
+		wantMessage string
 	}{
-		{f: Continue, code: http.StatusContinue},
-		{f: SwitchingProtocols, code: http.StatusSwitchingProtocols},
-		{f: OK, code: http.StatusOK},
-		{f: Created, code: http.StatusCreated},
-		{f: Accepted, code: http.StatusAccepted},
-		{f: NonAuthoritativeInfo, code: http.StatusNonAuthoritativeInfo},
-		{f: ResetContent, code: http.StatusResetContent},
-		{f: PartialContent, code: http.StatusPartialContent},
-		{f: MultipleChoices, code: http.StatusMultipleChoices},
-		{f: MovedPermanently, code: http.StatusMovedPermanently},
-		{f: Found, code: http.StatusFound},
-		{f: SeeOther, code: http.StatusSeeOther},
-		{f: NotModified, code: http.StatusNotModified},
-		{f: UseProxy, code: http.StatusUseProxy},
-		{f: TemporaryRedirect, code: http.StatusTemporaryRedirect},
-		{f: PermanentRedirect, code: http.StatusPermanentRedirect},
-		{f: BadRequest, code: http.StatusBadRequest},
-		{f: Unauthorized, code: http.StatusUnauthorized},
-		{f: PaymentRequired, code: http.StatusPaymentRequired},
-		{f: Forbidden, code: http.StatusForbidden},
-		{f: NotFound, code: http.StatusNotFound},
-		{f: MethodNotAllowed, code: http.StatusMethodNotAllowed},
-		{f: NotAcceptable, code: http.StatusNotAcceptable},
-		{f: ProxyAuthRequired, code: http.StatusProxyAuthRequired},
-		{f: RequestTimeout, code: http.StatusRequestTimeout},
-		{f: Conflict, code: http.StatusConflict},
-		{f: Gone, code: http.StatusGone},
-		{f: LengthRequired, code: http.StatusLengthRequired},
-		{f: PreconditionFailed, code: http.StatusPreconditionFailed},
-		{f: RequestEntityTooLarge, code: http.StatusRequestEntityTooLarge},
-		{f: RequestURITooLong, code: http.StatusRequestURITooLong},
-		{f: UnsupportedMediaType, code: http.StatusUnsupportedMediaType},
-		{f: RequestedRangeNotSatisfiable, code: http.StatusRequestedRangeNotSatisfiable},
-		{f: ExpectationFailed, code: http.StatusExpectationFailed},
-		{f: Teapot, code: http.StatusTeapot},
-		{f: UpgradeRequired, code: http.StatusUpgradeRequired},
-		{f: PreconditionRequired, code: http.StatusPreconditionRequired},
-		{f: TooManyRequests, code: http.StatusTooManyRequests},
-		{f: RequestHeaderFieldsTooLarge, code: http.StatusRequestHeaderFieldsTooLarge},
-		{f: UnavailableForLegalReasons, code: http.StatusUnavailableForLegalReasons},
-		{f: InternalServerError, code: http.StatusInternalServerError},
-		{f: NotImplemented, code: http.StatusNotImplemented},
-		{f: BadGateway, code: http.StatusBadGateway},
-		{f: ServiceUnavailable, code: http.StatusServiceUnavailable},
-		{f: GatewayTimeout, code: http.StatusGatewayTimeout},
-		{f: HTTPVersionNotSupported, code: http.StatusHTTPVersionNotSupported},
+		{
+			name:        "string 200",
+			code:        http.StatusOK,
+			response:    "custom message",
+			wantMessage: "custom message",
+		},
+		{
+			name:        "string 404",
+			code:        http.StatusNotFound,
+			response:    "element not found",
+			wantMessage: "element not found",
+		},
+		{
+			name:        "error 400",
+			code:        http.StatusBadRequest,
+			response:    errors.New("test error"),
+			wantMessage: "test error",
+		},
+		{
+			name:        "error 500",
+			code:        http.StatusInternalServerError,
+			response:    errors.New("test error"),
+			wantMessage: "test error",
+		},
+		{
+			name:        "stringer 200",
+			code:        http.StatusOK,
+			response:    net.IPv4(127, 0, 0, 1), // net.IP implements Stringer interface
+			wantMessage: "127.0.0.1",
+		},
+		{
+			name:        "stringer 403",
+			code:        http.StatusForbidden,
+			response:    net.IPv4(2, 4, 8, 16), // net.IP implements Stringer interface
+			wantMessage: "2.4.8.16",
+		},
 	} {
-		w := httptest.NewRecorder()
-		test.f(w, nil)
-		m := &MessageResponse{}
+		t.Run(tc.name, func(t *testing.T) {
+			w := httptest.NewRecorder()
 
-		if err := json.Unmarshal(w.Body.Bytes(), m); err != nil {
-			t.Errorf("json unmarshal response body: %s", err)
-		}
+			jsonhttp.Respond(w, tc.code, tc.response)
 
-		if m.Code != test.code {
-			t.Errorf("expected message code %d, got %d", test.code, m.Code)
-		}
+			statusCode := w.Result().StatusCode
+			if statusCode != tc.code {
+				t.Errorf("got status code %d, want %d", statusCode, tc.code)
+			}
 
-		if m.Message != http.StatusText(test.code) {
-			t.Errorf("expected message message \"%s\", got \"%s\"", http.StatusText(test.code), m.Message)
-		}
+			var m *jsonhttp.StatusResponse
+
+			if err := json.Unmarshal(w.Body.Bytes(), &m); err != nil {
+				t.Errorf("json unmarshal response body: %s", err)
+			}
+
+			if m.Code != tc.code {
+				t.Errorf("got message code %d, want %d", m.Code, tc.code)
+			}
+
+			if m.Message != tc.wantMessage {
+				t.Errorf("got message message %q, want %q", m.Message, tc.wantMessage)
+			}
+
+			testContentType(t, w)
+		})
 	}
 }
 
-func TestNewMessage(t *testing.T) {
-	message := "testing message"
-	m := NewMessage(message)
-	if m.Message != message {
-		t.Errorf("expected message %q, got %q", message, m.Message)
+func TestRespond_custom(t *testing.T) {
+	w := httptest.NewRecorder()
+
+	wantCode := http.StatusTeapot
+
+	type response struct {
+		Field1 string `json:"field1"`
+		Field2 int    `json:"field2"`
 	}
-	if m.Code != 0 {
-		t.Errorf("expected message %d, got %d", 0, m.Code)
+
+	r := response{
+		Field1: "custom message",
+		Field2: 42,
+	}
+	jsonhttp.Respond(w, wantCode, r)
+
+	statusCode := w.Result().StatusCode
+	if statusCode != wantCode {
+		t.Errorf("got status code %d, want %d", statusCode, wantCode)
+	}
+
+	var m response
+
+	if err := json.Unmarshal(w.Body.Bytes(), &m); err != nil {
+		t.Errorf("json unmarshal response body: %s", err)
+	}
+
+	if !reflect.DeepEqual(m, r) {
+		t.Errorf("got response %+v, want %+v", m, r)
+	}
+
+	testContentType(t, w)
+}
+
+func TestStandardHTTPResponds(t *testing.T) {
+	for _, tc := range []struct {
+		f    func(w http.ResponseWriter, response interface{})
+		code int
+	}{
+		{f: jsonhttp.Continue, code: http.StatusContinue},
+		{f: jsonhttp.SwitchingProtocols, code: http.StatusSwitchingProtocols},
+		{f: jsonhttp.OK, code: http.StatusOK},
+		{f: jsonhttp.Created, code: http.StatusCreated},
+		{f: jsonhttp.Accepted, code: http.StatusAccepted},
+		{f: jsonhttp.NonAuthoritativeInfo, code: http.StatusNonAuthoritativeInfo},
+		{f: jsonhttp.ResetContent, code: http.StatusResetContent},
+		{f: jsonhttp.PartialContent, code: http.StatusPartialContent},
+		{f: jsonhttp.MultipleChoices, code: http.StatusMultipleChoices},
+		{f: jsonhttp.MovedPermanently, code: http.StatusMovedPermanently},
+		{f: jsonhttp.Found, code: http.StatusFound},
+		{f: jsonhttp.SeeOther, code: http.StatusSeeOther},
+		{f: jsonhttp.NotModified, code: http.StatusNotModified},
+		{f: jsonhttp.UseProxy, code: http.StatusUseProxy},
+		{f: jsonhttp.TemporaryRedirect, code: http.StatusTemporaryRedirect},
+		{f: jsonhttp.PermanentRedirect, code: http.StatusPermanentRedirect},
+		{f: jsonhttp.BadRequest, code: http.StatusBadRequest},
+		{f: jsonhttp.Unauthorized, code: http.StatusUnauthorized},
+		{f: jsonhttp.PaymentRequired, code: http.StatusPaymentRequired},
+		{f: jsonhttp.Forbidden, code: http.StatusForbidden},
+		{f: jsonhttp.NotFound, code: http.StatusNotFound},
+		{f: jsonhttp.MethodNotAllowed, code: http.StatusMethodNotAllowed},
+		{f: jsonhttp.NotAcceptable, code: http.StatusNotAcceptable},
+		{f: jsonhttp.ProxyAuthRequired, code: http.StatusProxyAuthRequired},
+		{f: jsonhttp.RequestTimeout, code: http.StatusRequestTimeout},
+		{f: jsonhttp.Conflict, code: http.StatusConflict},
+		{f: jsonhttp.Gone, code: http.StatusGone},
+		{f: jsonhttp.LengthRequired, code: http.StatusLengthRequired},
+		{f: jsonhttp.PreconditionFailed, code: http.StatusPreconditionFailed},
+		{f: jsonhttp.RequestEntityTooLarge, code: http.StatusRequestEntityTooLarge},
+		{f: jsonhttp.RequestURITooLong, code: http.StatusRequestURITooLong},
+		{f: jsonhttp.UnsupportedMediaType, code: http.StatusUnsupportedMediaType},
+		{f: jsonhttp.RequestedRangeNotSatisfiable, code: http.StatusRequestedRangeNotSatisfiable},
+		{f: jsonhttp.ExpectationFailed, code: http.StatusExpectationFailed},
+		{f: jsonhttp.Teapot, code: http.StatusTeapot},
+		{f: jsonhttp.UpgradeRequired, code: http.StatusUpgradeRequired},
+		{f: jsonhttp.PreconditionRequired, code: http.StatusPreconditionRequired},
+		{f: jsonhttp.TooManyRequests, code: http.StatusTooManyRequests},
+		{f: jsonhttp.RequestHeaderFieldsTooLarge, code: http.StatusRequestHeaderFieldsTooLarge},
+		{f: jsonhttp.UnavailableForLegalReasons, code: http.StatusUnavailableForLegalReasons},
+		{f: jsonhttp.InternalServerError, code: http.StatusInternalServerError},
+		{f: jsonhttp.NotImplemented, code: http.StatusNotImplemented},
+		{f: jsonhttp.BadGateway, code: http.StatusBadGateway},
+		{f: jsonhttp.ServiceUnavailable, code: http.StatusServiceUnavailable},
+		{f: jsonhttp.GatewayTimeout, code: http.StatusGatewayTimeout},
+		{f: jsonhttp.HTTPVersionNotSupported, code: http.StatusHTTPVersionNotSupported},
+	} {
+		w := httptest.NewRecorder()
+		tc.f(w, nil)
+		var m *jsonhttp.StatusResponse
+
+		if err := json.Unmarshal(w.Body.Bytes(), &m); err != nil {
+			t.Errorf("json unmarshal response body: %s", err)
+		}
+
+		if m.Code != tc.code {
+			t.Errorf("expected message code %d, got %d", tc.code, m.Code)
+		}
+
+		if m.Message != http.StatusText(tc.code) {
+			t.Errorf("expected message message %q, got %q", http.StatusText(tc.code), m.Message)
+		}
+
+		testContentType(t, w)
+	}
+}
+
+func testContentType(t *testing.T, r *httptest.ResponseRecorder) {
+	t.Helper()
+
+	if got := r.Header().Get("Content-Type"); got != jsonhttp.DefaultContentTypeHeader {
+		t.Errorf("got content type %q, want %q", got, jsonhttp.DefaultContentTypeHeader)
 	}
 }

@@ -17,7 +17,7 @@ func TestUnmarshalRequestBody(t *testing.T) {
 	w := httptest.NewRecorder()
 	r := httptest.NewRequest("", "/", strings.NewReader("{}"))
 
-	m := &MessageResponse{}
+	var m StatusResponse
 
 	err := UnmarshalRequestBody(w, r, m)
 
@@ -35,19 +35,17 @@ func TestUnmarshalRequestBody(t *testing.T) {
 	}
 
 	if m.Message != "" {
-		t.Errorf("expected message message \"\", got \"%s\"", m.Message)
+		t.Errorf("expected message message \"\", got %q", m.Message)
 	}
 }
 
-func TestUnmarshalRequestBodyMessage(t *testing.T) {
+func TestUnmarshalRequestBody_message(t *testing.T) {
 	w := httptest.NewRecorder()
 	r := httptest.NewRequest("", "/", strings.NewReader(`{"message":"test message"}`))
 
-	m := &MessageResponse{}
+	var m StatusResponse
 
-	err := UnmarshalRequestBody(w, r, m)
-
-	if err != nil {
+	if err := UnmarshalRequestBody(w, r, &m); err != nil {
 		t.Errorf("unexpected error: %#v", err)
 	}
 
@@ -61,11 +59,11 @@ func TestUnmarshalRequestBodyMessage(t *testing.T) {
 	}
 
 	if m.Message != "test message" {
-		t.Errorf("expected message message \"test message\", got \"%s\"", m.Message)
+		t.Errorf("expected message message \"test message\", got %q", m.Message)
 	}
 }
 
-func TestUnmarshalRequestBodyEmptyBody(t *testing.T) {
+func TestUnmarshalRequestBody_emptyBody(t *testing.T) {
 	w := httptest.NewRecorder()
 	r := httptest.NewRequest("", "/", nil)
 
@@ -80,8 +78,8 @@ func TestUnmarshalRequestBodyEmptyBody(t *testing.T) {
 		t.Errorf("expected status code %d, got %d", http.StatusBadRequest, statusCode)
 	}
 
-	m := &MessageResponse{}
-	if err := json.Unmarshal(w.Body.Bytes(), m); err != nil {
+	var m StatusResponse
+	if err := json.Unmarshal(w.Body.Bytes(), &m); err != nil {
 		t.Errorf("json unmarshal response body: %#v", err)
 	}
 
@@ -90,11 +88,11 @@ func TestUnmarshalRequestBodyEmptyBody(t *testing.T) {
 	}
 
 	if m.Message != ErrEmptyRequestBody.Error() {
-		t.Errorf("expected message message \"%s\", got \"%s\"", ErrEmptyRequestBody.Error(), m.Message)
+		t.Errorf("expected message message %q, got %q", ErrEmptyRequestBody.Error(), m.Message)
 	}
 }
 
-func TestUnmarshalRequestBodyContentLength0(t *testing.T) {
+func TestUnmarshalRequestBody_contentLength0(t *testing.T) {
 	w := httptest.NewRecorder()
 	r := httptest.NewRequest("", "/", strings.NewReader("{}"))
 	r.Header.Add("Content-Length", "0")
@@ -110,8 +108,8 @@ func TestUnmarshalRequestBodyContentLength0(t *testing.T) {
 		t.Errorf("expected status code %d, got %d", http.StatusBadRequest, statusCode)
 	}
 
-	m := &MessageResponse{}
-	if err := json.Unmarshal(w.Body.Bytes(), m); err != nil {
+	var m StatusResponse
+	if err := json.Unmarshal(w.Body.Bytes(), &m); err != nil {
 		t.Errorf("json unmarshal response body: %#v", err)
 	}
 
@@ -120,11 +118,11 @@ func TestUnmarshalRequestBodyContentLength0(t *testing.T) {
 	}
 
 	if m.Message != ErrEmptyRequestBody.Error() {
-		t.Errorf("expected message message \"%s\", got \"%s\"", ErrEmptyRequestBody.Error(), m.Message)
+		t.Errorf("expected message message %q, got %q", ErrEmptyRequestBody.Error(), m.Message)
 	}
 }
 
-func TestUnmarshalRequestBodyJSONSyntaxError(t *testing.T) {
+func TestUnmarshalRequestBody_jsonSyntaxError(t *testing.T) {
 	w := httptest.NewRecorder()
 	r := httptest.NewRequest("", "/", strings.NewReader("{1}"))
 
@@ -139,8 +137,8 @@ func TestUnmarshalRequestBodyJSONSyntaxError(t *testing.T) {
 		t.Errorf("expected status code %d, got %d", http.StatusBadRequest, statusCode)
 	}
 
-	m := &MessageResponse{}
-	if err := json.Unmarshal(w.Body.Bytes(), m); err != nil {
+	var m StatusResponse
+	if err := json.Unmarshal(w.Body.Bytes(), &m); err != nil {
 		t.Errorf("json unmarshal response body: %#v", err)
 	}
 
@@ -150,15 +148,15 @@ func TestUnmarshalRequestBodyJSONSyntaxError(t *testing.T) {
 
 	message := "invalid character '1' looking for beginning of object key string (offset 2)"
 	if m.Message != message {
-		t.Errorf("expected message message \"%s\", got \"%s\"", message, m.Message)
+		t.Errorf("expected message message %q, got %q", message, m.Message)
 	}
 }
 
-func TestUnmarshalRequestBodyJSONUnmarshalTypeError(t *testing.T) {
+func TestUnmarshalRequestBody_jsonUnmarshalTypeError(t *testing.T) {
 	w := httptest.NewRecorder()
 	r := httptest.NewRequest("", "/", strings.NewReader(`{"code":"invalid code"}`))
 
-	err := UnmarshalRequestBody(w, r, &MessageResponse{})
+	err := UnmarshalRequestBody(w, r, &StatusResponse{})
 
 	if _, ok := err.(*json.UnmarshalTypeError); !ok {
 		t.Errorf("expected error json.UnmarshalTypeError, got %#v", err)
@@ -169,8 +167,8 @@ func TestUnmarshalRequestBodyJSONUnmarshalTypeError(t *testing.T) {
 		t.Errorf("expected status code %d, got %d", http.StatusBadRequest, statusCode)
 	}
 
-	m := &MessageResponse{}
-	if err := json.Unmarshal(w.Body.Bytes(), m); err != nil {
+	var m StatusResponse
+	if err := json.Unmarshal(w.Body.Bytes(), &m); err != nil {
 		t.Errorf("json unmarshal response body: %#v", err)
 	}
 
@@ -180,6 +178,6 @@ func TestUnmarshalRequestBodyJSONUnmarshalTypeError(t *testing.T) {
 
 	message := "expected json int value but got string (offset 22)"
 	if m.Message != message {
-		t.Errorf("expected message message \"%s\", got \"%s\"", message, m.Message)
+		t.Errorf("expected message message %q, got %q", message, m.Message)
 	}
 }

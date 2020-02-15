@@ -26,25 +26,21 @@ func UnmarshalRequestBody(w http.ResponseWriter, r *http.Request, v interface{})
 	defer r.Body.Close()
 
 	if r.Header.Get("Content-Length") == "0" {
-		BadRequest(w, MessageResponse{
-			Message: "empty request body",
-		})
+		BadRequest(w, "empty request body")
 		return ErrEmptyRequestBody
 	}
 	if err := json.NewDecoder(r.Body).Decode(&v); err != nil {
-		response := MessageResponse{}
 		switch e := err.(type) {
 		case *json.SyntaxError:
-			response.Message = fmt.Sprintf("%v (offset %d)", e, e.Offset)
+			BadRequest(w, fmt.Sprintf("%v (offset %d)", e, e.Offset))
 		case *json.UnmarshalTypeError:
-			response.Message = fmt.Sprintf("expected json %s value but got %s (offset %d)", e.Type, e.Value, e.Offset)
+			BadRequest(w, fmt.Sprintf("expected json %s value but got %s (offset %d)", e.Type, e.Value, e.Offset))
 		default:
 			if err == io.EOF {
 				err = ErrEmptyRequestBody
 			}
-			response.Message = err.Error()
+			BadRequest(w, err)
 		}
-		BadRequest(w, response)
 		return err
 	}
 	return nil

@@ -21,33 +21,45 @@ var (
 	EscapeHTML = false
 )
 
-// MessageResponse is the response structure that will be written by
-// Respond function if respond argument is nil.
-type MessageResponse struct {
+// StatusResponse is a standardized error format for specific HTTP responses.
+// Code field corresponds with HTTP status code, and Message field is a short
+// description of that code or provides more context about the reason for such
+// response.
+//
+// If response is string, error or Stringer type the string will be set as
+// value to the Message field.
+type StatusResponse struct {
 	Message string `json:"message,omitempty"`
 	Code    int    `json:"code,omitempty"`
 }
 
-// NewMessage returns MessageResponse with a provided textual message.
-func NewMessage(message string) *MessageResponse {
-	return &MessageResponse{
-		Message: message,
-	}
-}
-
 // Respond writes a JSON-encoded body to http.ResponseWriter.
 func Respond(w http.ResponseWriter, statusCode int, response interface{}) {
-	if response == nil {
-		response = &MessageResponse{}
-	} else if r, ok := response.(MessageResponse); ok {
-		response = &r
+	if statusCode == 0 {
+		statusCode = http.StatusOK
 	}
-	if r, ok := response.(*MessageResponse); ok {
-		if r.Code == 0 {
-			r.Code = statusCode
+	if response == nil {
+		response = &StatusResponse{
+			Message: http.StatusText(statusCode),
+			Code:    statusCode,
 		}
-		if r.Message == "" {
-			r.Message = http.StatusText(statusCode)
+	} else {
+		switch message := response.(type) {
+		case string:
+			response = &StatusResponse{
+				Message: message,
+				Code:    statusCode,
+			}
+		case error:
+			response = &StatusResponse{
+				Message: message.Error(),
+				Code:    statusCode,
+			}
+		case fmt.Stringer:
+			response = &StatusResponse{
+				Message: message.String(),
+				Code:    statusCode,
+			}
 		}
 	}
 	var b bytes.Buffer
