@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
 )
 
 var (
@@ -70,6 +71,9 @@ func Respond(w http.ResponseWriter, statusCode int, response interface{}) {
 	}
 	if DefaultContentTypeHeader != "" {
 		w.Header().Set("Content-Type", DefaultContentTypeHeader)
+	}
+	if l := b.Len(); l > 0 {
+		w.Header().Set("Content-Length", strconv.Itoa(l))
 	}
 	w.WriteHeader(statusCode)
 	fmt.Fprintln(w, b.String())
