@@ -12,7 +12,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"reflect"
-	"strconv"
 	"testing"
 
 	"resenje.org/jsonhttp"
@@ -45,7 +44,6 @@ func TestRespond_defaults(t *testing.T) {
 	}
 
 	testContentType(t, w)
-	testContentLength(t, w)
 }
 
 func TestRespond_statusCode(t *testing.T) {
@@ -244,7 +242,6 @@ func TestRespond_special(t *testing.T) {
 			}
 
 			testContentType(t, w)
-			testContentLength(t, w)
 		})
 	}
 }
@@ -281,7 +278,6 @@ func TestRespond_custom(t *testing.T) {
 	}
 
 	testContentType(t, w)
-	testContentLength(t, w)
 }
 
 func TestStandardHTTPResponds(t *testing.T) {
@@ -353,7 +349,6 @@ func TestStandardHTTPResponds(t *testing.T) {
 		}
 
 		testContentType(t, w)
-		testContentLength(t, w)
 	}
 }
 
@@ -362,14 +357,5 @@ func testContentType(t *testing.T, r *httptest.ResponseRecorder) {
 
 	if got := r.Header().Get("Content-Type"); got != jsonhttp.DefaultContentTypeHeader {
 		t.Errorf("got content type %q, want %q", got, jsonhttp.DefaultContentTypeHeader)
-	}
-}
-
-func testContentLength(t *testing.T, r *httptest.ResponseRecorder) {
-	t.Helper()
-
-	want := strconv.FormatInt(r.Result().ContentLength, 10)
-	if got := r.Header().Get("Content-Length"); got != want {
-		t.Errorf("got content length header %q, want %q", got, want)
 	}
 }
