@@ -19,6 +19,12 @@ var (
 	// EscapeHTML specifies whether problematic HTML characters
 	// should be escaped inside JSON quoted strings.
 	EscapeHTML = false
+	// Prefix specifies the prefix for the JSON response in
+	// json.Encoder.SetIndent function.
+	Prefix = ""
+	// Indent specifies the indent for the JSON response in
+	// json.Encoder.SetIndent function.
+	Indent = ""
 )
 
 // StatusResponse is a standardized error format for specific HTTP responses.
@@ -65,6 +71,7 @@ func Respond(w http.ResponseWriter, statusCode int, response interface{}) {
 	var b bytes.Buffer
 	enc := json.NewEncoder(&b)
 	enc.SetEscapeHTML(EscapeHTML)
+	enc.SetIndent(Prefix, Indent)
 	if err := enc.Encode(response); err != nil {
 		panic(err)
 	}
